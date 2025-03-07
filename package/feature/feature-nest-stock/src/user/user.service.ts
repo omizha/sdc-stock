@@ -49,27 +49,24 @@ export class UserService {
   }
 
   async registerUser(user: StockUser): Promise<Response.GetCreateUser> {
-    if (this.sqsService) {
-      try {
-        const messageId = await this.sqsService.sendMessage('registerUser', user);
+    try {
+      const messageId = await this.sqsService.sendMessage('registerUser', user);
 
-        const tempUser = {
-          ...user,
-          _id: new mongoose.Types.ObjectId(),
-          messageId,
-          processingStatus: 'QUEUED',
-        };
+      const tempUser = {
+        ...user,
+        _id: new mongoose.Types.ObjectId(),
+        messageId,
+        processingStatus: 'QUEUED',
+      };
 
-        return {
-          isAlreadyExists: false,
-          user: tempUser as unknown as StockUser,
-        };
-      } catch (error) {
-        console.error('SQS 메시지 전송 오류:', error);
-      }
+      return {
+        isAlreadyExists: false,
+        user: tempUser as unknown as StockUser,
+      };
+    } catch (error) {
+      console.error('SQS 메시지 전송 오류:', error);
+      throw error;
     }
-
-    return this.userRepository.create(user);
   }
 
   async alignIndex(stockId: string): Promise<void> {

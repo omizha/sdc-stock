@@ -17,10 +17,6 @@ export class SqsService {
 
   constructor(private configService: ConfigService, @Inject('SQS_OPTIONS') private options: SqsOptions) {
     this.sqsClient = new SQSClient({
-      credentials: {
-        accessKeyId: this.options.accessKeyId || this.configService.get<string>('AWS_ACCESS_KEY_ID', ''),
-        secretAccessKey: this.options.secretAccessKey || this.configService.get<string>('AWS_SECRET_ACCESS_KEY', ''),
-      },
       region: this.options.region || this.configService.get<string>('AWS_REGION', 'ap-northeast-2'),
     });
     this.queueUrl = this.options.queueUrl || this.configService.get<string>('AWS_SQS_QUEUE_URL', '');
@@ -44,14 +40,24 @@ export class SqsService {
   }
 
   async receiveMessages(maxMessages = 1): Promise<Message[]> {
-    const command = new ReceiveMessageCommand({
-      MaxNumberOfMessages: maxMessages,
-      QueueUrl: this.queueUrl,
-      WaitTimeSeconds: 20, // 롱 폴링 설정
-    });
+    try {
+      const command = new ReceiveMessageCommand({
+        AttributeNames: ['All'],
+        MaxNumberOfMessages: maxMessages,
+        MessageAttributeNames: ['All'],
+        QueueUrl: this.queueUrl,
+      });
 
-    const response = await this.sqsClient.send(command);
-    return response.Messages || [];
+      console.log(this.queueUrl);
+
+      const response = await this.sqsClient.send(command);
+      console.log(response);
+
+      return response.Messages || [];
+    } catch (error) {
+      console.error('SQS 메시지 수신 오류:', error);
+      throw error;
+    }
   }
 
   async deleteMessage(receiptHandle: string): Promise<void> {

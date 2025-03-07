@@ -1,7 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { UserService } from 'feature-nest-stock';
 import { SqsService, SqsMessage } from 'lib-nest-sqs';
-import { StockUser } from 'feature-nest-stock/dist/user/user.schema';
 
 @Injectable()
 export class SqsConsumerService implements OnModuleInit {
@@ -9,8 +8,9 @@ export class SqsConsumerService implements OnModuleInit {
 
   constructor(private readonly sqsService: SqsService, private readonly userService: UserService) {}
 
-  onModuleInit(): void {
-    this.startConsumer();
+  async onModuleInit(): Promise<void> {
+    // eslint-disable-next-line no-return-await
+    return await this.startConsumer();
   }
 
   private async startConsumer(): Promise<void> {
@@ -24,8 +24,6 @@ export class SqsConsumerService implements OnModuleInit {
       } else {
         this.logger.error(`SQS Consumer 오류: ${error}`);
       }
-      // 오류 발생 시 잠시 대기 후 재시도
-      setTimeout(() => this.startConsumer(), 5000);
     }
   }
 
@@ -41,18 +39,20 @@ export class SqsConsumerService implements OnModuleInit {
     this.logger.log(`${messages.length}개의 메시지를.처리합니다.`);
 
     for (const message of messages) {
+      console.log('🚀 ~ SqsConsumerService ~ processMessages ~ message:', message);
+      this.logger.log(message);
       try {
         if (!message.Body) {
           this.logger.warn('메시지 본문이 없습니다.');
           continue;
         }
 
-        const sqsMessage = JSON.parse(message.Body) as SqsMessage;
-        await this.handleMessage(sqsMessage);
+        // const sqsMessage = JSON.parse(message.Body) as SqsMessage;
+        // await this.handleMessage(sqsMessage);
 
-        // 성공적으로 처리된 메시지 삭제
-        await this.sqsService.deleteMessage(message.ReceiptHandle);
-        this.logger.log(`메시지 처리 완료: ${sqsMessage.id}`);
+        // // 성공적으로 처리된 메시지 삭제
+        // await this.sqsService.deleteMessage(message.ReceiptHandle);
+        this.logger.log(`메시지 처리 완료:`);
       } catch (error) {
         if (error instanceof Error) {
           this.logger.error(`메시지 처리 중 오류 발생: ${error.message}`, error.stack);
@@ -67,14 +67,15 @@ export class SqsConsumerService implements OnModuleInit {
   private async handleMessage(message: SqsMessage): Promise<void> {
     switch (message.action) {
       case 'registerUser':
-        await this.handleUserRegistration(message.data as StockUser);
+        await this.handleUserRegistration(message.data as unknown);
         break;
       default:
         this.logger.warn(`알 수 없는 액션: ${message.action}`);
     }
   }
 
-  private async handleUserRegistration(userData: StockUser): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async handleUserRegistration(userData: any): Promise<void> {
     this.logger.log(`사용자 등록 처리: ${userData.userId} (${userData.stockId})`);
     await this.userService.registerUser(userData);
   }
